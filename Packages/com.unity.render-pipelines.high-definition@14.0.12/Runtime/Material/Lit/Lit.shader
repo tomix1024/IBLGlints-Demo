@@ -223,6 +223,7 @@ Shader "HDRP/Lit"
     HLSLINCLUDE
 
     #pragma target 4.5
+    #pragma use_dxc
     //#pragma enable_d3d11_debug_symbols
 
     //-------------------------------------------------------------------------------------
