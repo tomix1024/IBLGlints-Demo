@@ -439,7 +439,7 @@ real4 IntegrateLD(TEXTURECUBE_PARAM(tex, sampl),
     real partLambdaV = GetSmithJointGGXPartLambdaV(NdotV, roughness);
 #endif
 
-    real3 lightInt = real3(0.0, 0.0, 0.0);
+    real4 lightInt = real4(0.0, 0.0, 0.0, 0.0);
     real  cbsdfInt = 0.0;
 
     for (uint i = 0; i < sampleCount; ++i)
@@ -507,7 +507,7 @@ real4 IntegrateLD(TEXTURECUBE_PARAM(tex, sampl),
         }
 
         // TODO: use a Gaussian-like filter to generate the MIP pyramid.
-        real3 val = SAMPLE_TEXTURECUBE_LOD(tex, sampl, L, mipLevel).rgb;
+        real4 val = SAMPLE_TEXTURECUBE_LOD(tex, sampl, L, mipLevel);
 
         // The goal of this function is to use Monte-Carlo integration to find
         // X = Integral{Radiance(L) * CBSDF(L, N, V) dL} / Integral{CBSDF(L, N, V) dL}.
@@ -534,7 +534,7 @@ real4 IntegrateLD(TEXTURECUBE_PARAM(tex, sampl),
     #endif
     }
 
-    return real4(lightInt / cbsdfInt, 1.0);
+    return lightInt / cbsdfInt;
 }
 
 real4 IntegrateLDCharlie(TEXTURECUBE_PARAM(tex, sampl),
@@ -625,7 +625,7 @@ real4 IntegrateLD_MIS(TEXTURECUBE_PARAM(envMap, sampler_envMap),
 {
     real3x3 localToWorld = GetLocalFrame(N);
 
-    real3 lightInt = real3(0.0, 0.0, 0.0);
+    real4 lightInt = real4(0.0, 0.0, 0.0, 0.0);
     real  cbsdfInt = 0.0;
 
 /*
@@ -662,7 +662,7 @@ real4 IntegrateLD_MIS(TEXTURECUBE_PARAM(envMap, sampler_envMap),
 
         if (NdotL > 0.0)
         {
-            real3 val = SAMPLE_TEXTURECUBE_LOD(envMap, sampler_envMap, L, 0).rgb;
+            real4 val = SAMPLE_TEXTURECUBE_LOD(envMap, sampler_envMap, L, 0);
             real  pdf = (val.r + val.g + val.b) / envMapIntSphere;
 
             if (pdf > 0.0)
@@ -691,7 +691,7 @@ real4 IntegrateLD_MIS(TEXTURECUBE_PARAM(envMap, sampler_envMap),
     // Prevent NaNs arising from the division of 0 by 0.
     cbsdfInt = max(cbsdfInt, REAL_EPS);
 
-    return real4(lightInt / cbsdfInt, 1.0);
+    return lightInt / cbsdfInt;
 }
 #else
 // Not supported due to lack of random library in GLES 2
