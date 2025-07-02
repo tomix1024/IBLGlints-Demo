@@ -77,6 +77,33 @@ namespace UnityEngine.Rendering.HighDefinition
             }
         }
 
+        class SetGlobalConstantBufferPassData
+        {
+            public int shaderID;
+            public ComputeBuffer buffer;
+            public int offset;
+            public int size;
+        }
+
+        internal static void SetGlobalConstantBuffer(RenderGraph renderGraph, int shaderID, ComputeBuffer buffer, int offset, int size)
+        {
+            using (var builder = renderGraph.AddRenderPass<SetGlobalConstantBufferPassData>("SetGlobalConstantBuffer", out var passData))
+            {
+                builder.AllowPassCulling(false);
+
+                passData.shaderID = shaderID;
+                passData.buffer = buffer;
+                passData.offset = offset;
+                passData.size = size;
+
+                builder.SetRenderFunc(
+                    (SetGlobalConstantBufferPassData data, RenderGraphContext context) =>
+                    {
+                        context.cmd.SetGlobalConstantBuffer(data.buffer, data.shaderID, data.offset, data.size);
+                    });
+            }
+        }
+
         static void DrawOpaqueRendererList(in RenderGraphContext context, in FrameSettings frameSettings, in RendererList rendererList)
         {
             DrawOpaqueRendererList(context.renderContext, context.cmd, frameSettings, rendererList);
