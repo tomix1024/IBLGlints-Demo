@@ -56,6 +56,14 @@
 				return asfloat(abPacked);
 			}
 
+			float PackUintFloat(uint a, float b)
+			{
+				uint a16 = a & 0xffff;
+				uint b16 = f32tof16(b);
+				uint abPacked = (a16 << 16) | b16;
+				return asfloat(abPacked);
+			}
+
 			uint WangHash(uint seed)
 			{
 				seed = (seed ^ 61) ^ (seed >> 16);
@@ -66,18 +74,23 @@
 				return seed;
 			}
 
-			void RandXorshift(inout uint rngState)
+			uint RandXorshift(inout uint rngState)
 			{
 				// Xorshift algorithm from George Marsaglia's paper
 				rngState ^= (rngState << 13);
 				rngState ^= (rngState >> 17);
 				rngState ^= (rngState << 5);
+				return rngState;
 			}
 
 			float RandXorshiftFloat(inout uint rngState)
 			{
 				RandXorshift(rngState);
-				float res = float(rngState) * (1.0 / 4294967296.0);
+				//float res = float(rngState) * (1.0 / 4294967296.0);
+				// First generate a random number in (1, 2) and subtract 1.
+				uint mantissa_bits = (rngState & (~0 << 9)) != 0 ? rngState >> 9 : ((rngState << 14) | (1 << 13));
+				uint float_bits = (mantissa_bits) | 0x3f800000;
+				float res = asfloat(float_bits) - 1.0;
 				return res;
 			}
 
@@ -150,26 +163,26 @@
 				// Generate random numbers for this cell and the next ones in X and Y
 				int2 pixelCoord00 = int2(i.uv * _FrameSize.xy);
 				uint rngState00 = WangHash(CoordToFlatId(pixelCoord00 * 123) + _FrameSize.x * _FrameSize.y * _Seed);
-				float u00 = RandXorshiftFloat(rngState00);
+				uint u00 = RandXorshift(rngState00);
 				float g00 = InvCDF(RandXorshiftFloat(rngState00), GAUSSIAN_AVG, GAUSSIAN_STD);
 
 				int2 pixelCoord01 = (pixelCoord00 + int2(0, 1)) % size;
 				uint rngState01 = WangHash(CoordToFlatId(pixelCoord01 * 123) + _FrameSize.x * _FrameSize.y * _Seed);
-				float u01 = RandXorshiftFloat(rngState01);
+				uint u01 = RandXorshift(rngState01);
 				float g01 = InvCDF(RandXorshiftFloat(rngState01), GAUSSIAN_AVG, GAUSSIAN_STD);
 
 				int2 pixelCoord10 = (pixelCoord00 + int2(1, 0)) % size;
 				uint rngState10 = WangHash(CoordToFlatId(pixelCoord10 * 123) + _FrameSize.x * _FrameSize.y * _Seed);
-				float u10 = RandXorshiftFloat(rngState10);
+				uint u10 = RandXorshift(rngState10);
 				float g10 = InvCDF(RandXorshiftFloat(rngState10), GAUSSIAN_AVG, GAUSSIAN_STD);
 
 				int2 pixelCoord11 = (pixelCoord00 + int2(1, 1)) % size;
 				uint rngState11 = WangHash(CoordToFlatId(pixelCoord11 * 123) + _FrameSize.x * _FrameSize.y * _Seed);
-				float u11 = RandXorshiftFloat(rngState11);
+				uint u11 = RandXorshift(rngState11);
 				float g11 = InvCDF(RandXorshiftFloat(rngState11), GAUSSIAN_AVG, GAUSSIAN_STD);
 
 				// Pack 8 values into 4
-				return float4(PackFloats(u00, g00), PackFloats(u01, g01), PackFloats(u10, g10), PackFloats(u11, g11));
+				return float4(PackUintFloat(u00, g00), PackUintFloat(u01, g01), PackUintFloat(u10, g10), PackUintFloat(u11, g11));
 			}
 			ENDCG
 		}
