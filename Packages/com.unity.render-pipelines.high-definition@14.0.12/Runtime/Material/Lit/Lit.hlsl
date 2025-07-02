@@ -19,7 +19,8 @@
 // Choose between Lambert diffuse and Disney diffuse (enable only one of them)
 // #define USE_DIFFUSE_LAMBERT_BRDF
 
-#define LIT_USE_GGX_ENERGY_COMPENSATION
+// NOTE: For glint rendering we disable the energy compensation term
+//#define LIT_USE_GGX_ENERGY_COMPENSATION
 
 // Enable reference mode for IBL and area lights
 // Both reference define below can be define only if LightLoop is present, else we get a compile error
