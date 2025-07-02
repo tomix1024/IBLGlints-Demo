@@ -33,6 +33,12 @@ namespace UnityEditor.Rendering.HighDefinition
         SerializedDataParameter m_EnvUpdateMode;
         SerializedDataParameter m_EnvUpdatePeriod;
         SerializedDataParameter m_IncludeSunInBaking;
+        SerializedDataParameter m_GlintLogBlackLevel;
+        SerializedDataParameter m_GlintSmoothStepCount;
+        SerializedDataParameter m_GlintLogDistribution;
+        SerializedDataParameter m_GlintEnable4Levels;
+        SerializedDataParameter m_GlintEnable8Levels;
+        SerializedDataParameter m_GlintFormat;
         SerializedDataParameter m_DesiredLuxValue;
         SerializedDataParameter m_IntensityMode;
         SerializedDataParameter m_UpperHemisphereLuxValue;
@@ -64,6 +70,12 @@ namespace UnityEditor.Rendering.HighDefinition
             m_EnvUpdateMode = Unpack(o.Find(x => x.updateMode));
             m_EnvUpdatePeriod = Unpack(o.Find(x => x.updatePeriod));
             m_IncludeSunInBaking = Unpack(o.Find(x => x.includeSunInBaking));
+            m_GlintLogBlackLevel = Unpack(o.Find(x => x.glintLogBlackLevel));
+            m_GlintSmoothStepCount = Unpack(o.Find(x => x.glintSmoothStepCount));
+            m_GlintLogDistribution = Unpack(o.Find(x => x.glintLogDistribution));
+            m_GlintEnable4Levels = Unpack(o.Find(x => x.glintEnable4Levels));
+            m_GlintEnable8Levels = Unpack(o.Find(x => x.glintEnable8Levels));
+            m_GlintFormat = Unpack(o.Find(x => x.glintFormat));
             m_DesiredLuxValue = Unpack(o.Find(x => x.desiredLuxValue));
             m_IntensityMode = Unpack(o.Find(x => x.skyIntensityMode));
             m_UpperHemisphereLuxValue = Unpack(o.Find(x => x.upperHemisphereLuxValue));
@@ -125,6 +137,14 @@ namespace UnityEditor.Rendering.HighDefinition
             }
             if ((m_CommonUIElementsMask & (uint)SkySettingsUIElement.IncludeSunInBaking) != 0)
                 PropertyField(m_IncludeSunInBaking);
+
+            // Always.
+            PropertyField(m_GlintLogBlackLevel);
+            PropertyField(m_GlintSmoothStepCount);
+            PropertyField(m_GlintLogDistribution);
+            PropertyField(m_GlintEnable4Levels);
+            PropertyField(m_GlintEnable8Levels);
+            PropertyField(m_GlintFormat);
         }
     }
 }

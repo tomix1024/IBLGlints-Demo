@@ -2,6 +2,7 @@ $Material.SubsurfaceScattering:     #define _MATERIAL_FEATURE_SUBSURFACE_SCATTER
 $Material.Transmission:             #define _MATERIAL_FEATURE_TRANSMISSION 1
 $Material.Anisotropy:               #define _MATERIAL_FEATURE_ANISOTROPY 1
 $Material.Iridescence:              #define _MATERIAL_FEATURE_IRIDESCENCE 1
+$Material.Glints:                   #define _MATERIAL_FEATURE_GLINTS 1
 $Material.SpecularColor:            #define _MATERIAL_FEATURE_SPECULAR_COLOR 1
 $Material.ClearCoat:                #define _MATERIAL_FEATURE_CLEAR_COAT
 $AmbientOcclusion:                  #define _AMBIENT_OCCLUSION 1

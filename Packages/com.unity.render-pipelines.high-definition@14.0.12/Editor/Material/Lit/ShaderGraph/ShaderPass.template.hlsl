@@ -67,6 +67,10 @@ void BuildSurfaceData(FragInputs fragInputs, inout SurfaceDescription surfaceDes
         surfaceData.materialFeatures |= MATERIALFEATUREFLAGS_LIT_IRIDESCENCE;
     #endif
 
+    #ifdef _MATERIAL_FEATURE_GLINTS
+        surfaceData.materialFeatures |= MATERIALFEATUREFLAGS_LIT_GLINTS;
+    #endif
+
     #ifdef _MATERIAL_FEATURE_SPECULAR_COLOR
         surfaceData.materialFeatures |= MATERIALFEATUREFLAGS_LIT_SPECULAR_COLOR;
     #endif

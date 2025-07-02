@@ -160,6 +160,10 @@ namespace UnityEngine.Rendering.HighDefinition
             public Shader charlieConvolvePS;
             [Reload("Runtime/Lighting/AtmosphericScattering/OpaqueAtmosphericScattering.shader")]
             public Shader opaqueAtmosphericScatteringPS;
+            [Reload("Runtime/Material/Glints/RadianceLevels/ComputeRadianceLevelWeights.shader")]
+            public Shader computeRadianceLevelWeightsPS;
+            [Reload("Runtime/Material/Glints/RadianceLevels/ComputeRadianceLevels.compute")]
+            public ComputeShader computeRadianceLevelsCS;
             [Reload("Runtime/Sky/HDRISky/HDRISky.shader")]
             public Shader hdriSkyPS;
             [Reload("Runtime/Sky/HDRISky/IntegrateHDRISky.shader")]
@@ -218,6 +222,8 @@ namespace UnityEngine.Rendering.HighDefinition
             public Shader preIntegratedFGD_CookTorrancePS;
             [Reload("Runtime/Material/PreIntegratedFGD/PreIntegratedFGD_Marschner.shader")]
             public Shader preIntegratedFGD_MarschnerPS;
+            [Reload("Runtime/Material/PreIntegratedFGD/PreIntegratedFGD_DGGXOnly.shader")]
+            public Shader preIntegratedFGD_DGGXOnlyPS;
             [Reload("Runtime/Material/Hair/MultipleScattering/HairMultipleScatteringPreIntegration.compute")]
             public ComputeShader preIntegratedFiberScatteringCS;
             [Reload("Runtime/Material/VolumetricMaterial/VolumetricMaterial.compute")]

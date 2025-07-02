@@ -23,6 +23,11 @@ namespace UnityEngine.Rendering.HighDefinition
         CookTorrance,
         Ward,
         OrenNayar,
+
+        // For Glints
+        DGGXOnly,
+        DGGXOnlyAligned,
+
         Count
     }
 
@@ -55,6 +60,9 @@ namespace UnityEngine.Rendering.HighDefinition
                     return new BRDF_Ward();
                 case LTCLightingModel.OrenNayar:
                     return new BRDF_OrenNayar();
+
+                case LTCLightingModel.DGGXOnly:
+                    return new BRDF_DGGXOnly();
             }
             return new BRDF_GGX();
         }
@@ -133,6 +141,10 @@ namespace UnityEngine.Rendering.HighDefinition
                 LoadLUT(m_LtcData, (int)LTCLightingModel.CookTorrance, GraphicsFormat.R16G16B16A16_SFloat, s_LtcMatrixData_BRDF_CookTorrance);
                 LoadLUT(m_LtcData, (int)LTCLightingModel.Ward, GraphicsFormat.R16G16B16A16_SFloat, s_LtcMatrixData_BRDF_Ward);
                 LoadLUT(m_LtcData, (int)LTCLightingModel.OrenNayar, GraphicsFormat.R16G16B16A16_SFloat, s_LtcMatrixData_BRDF_OrenNayar);
+
+                // For Glint NDF integration
+                LoadLUT(m_LtcData, (int)LTCLightingModel.DGGXOnly, GraphicsFormat.R16G16B16A16_SFloat, s_LtcMatrixData_BRDF_DGGXOnly);
+                LoadLUT(m_LtcData, (int)LTCLightingModel.DGGXOnlyAligned, GraphicsFormat.R16G16B16A16_SFloat, s_LtcMatrixData_BRDF_DGGXOnlyAligned);
 
                 m_LtcData.Apply();
             }

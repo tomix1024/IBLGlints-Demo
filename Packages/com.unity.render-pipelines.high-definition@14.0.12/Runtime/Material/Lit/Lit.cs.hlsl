@@ -73,6 +73,7 @@
 #define MATERIALFEATUREFLAGS_LIT_ANISOTROPY (16)
 #define MATERIALFEATUREFLAGS_LIT_IRIDESCENCE (32)
 #define MATERIALFEATUREFLAGS_LIT_CLEAR_COAT (64)
+#define MATERIALFEATUREFLAGS_LIT_GLINTS (128)
 
 // Generated from UnityEngine.Rendering.HighDefinition.Lit+SurfaceData
 // PackingRules = Exact
@@ -95,6 +96,9 @@ struct SurfaceData
     real anisotropy;
     real iridescenceThickness;
     real iridescenceMask;
+    real2 glintUV;
+    real2 glintDUVDX;
+    real2 glintDUVDY;
     real3 geomNormalWS;
     real ior;
     real3 transmittanceColor;
@@ -126,6 +130,9 @@ struct BSDFData
     real anisotropy;
     real iridescenceThickness;
     real iridescenceMask;
+    real2 glintUV;
+    real2 glintDUVDX;
+    real2 glintDUVDY;
     real coatRoughness;
     real3 geomNormalWS;
     real ior;

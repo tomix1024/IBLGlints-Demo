@@ -211,6 +211,8 @@ namespace UnityEngine.Rendering.HighDefinition
         public static readonly int _UseTileLightList = Shader.PropertyToID("_UseTileLightList");
 
         public static readonly int _SkyTexture = Shader.PropertyToID("_SkyTexture");
+        public static readonly int _SkyTextureGlintLevelWeights = Shader.PropertyToID("_SkyTextureGlintLevelWeights");
+        public static readonly int _GlintLevelsData = Shader.PropertyToID("_GlintLevelsData");
 
         public static readonly int specularLightingUAV = Shader.PropertyToID("specularLightingUAV");
         public static readonly int diffuseLightingUAV = Shader.PropertyToID("diffuseLightingUAV");
@@ -865,6 +867,7 @@ namespace UnityEngine.Rendering.HighDefinition
         public static readonly int _PreIntegratedFGD_GGXDisneyDiffuse = Shader.PropertyToID("_PreIntegratedFGD_GGXDisneyDiffuse");
         public static readonly int _PreIntegratedFGD_CharlieAndFabric = Shader.PropertyToID("_PreIntegratedFGD_CharlieAndFabric");
         public static readonly int _PreIntegratedFGD_Marschner = Shader.PropertyToID("_PreIntegratedFGD_Marschner");
+        public static readonly int _PreIntegratedFGD_DGGXOnly = Shader.PropertyToID("_PreIntegratedFGD_DGGXOnly");
         public static readonly int _PreIntegratedAzimuthalScattering = Shader.PropertyToID("_PreIntegratedAzimuthalScattering");
 
         public static readonly int _ExposureTexture = Shader.PropertyToID("_ExposureTexture");
@@ -1355,5 +1358,13 @@ namespace UnityEngine.Rendering.HighDefinition
 
         internal const string kCoatMask = "_CoatMask";
         internal const string kCoatMaskMap = "_CoatMaskMap";
+
+        // Glints...
+        internal const string kGlintSurfaceDistribution = "_GlintSurfaceDistribution";
+        internal const string kGlintIBLVariant = "_GlintIBLVariant";
+        internal const string kGlintIBLDistribution = "_GlintIBLDistribution";
+        internal const string kGlintNDFIntegrationMode = "_GlintNDFIntegrationMode";
+        internal const string kLogSinSunAngle = "_LogSinSunAngle";
+        internal const string kSunSolidAngle = "_SunSolidAngle";
     }
 }

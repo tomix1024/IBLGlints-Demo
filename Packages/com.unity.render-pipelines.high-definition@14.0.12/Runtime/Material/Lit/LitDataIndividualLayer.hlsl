@@ -307,6 +307,9 @@ float ADD_IDX(GetSurfaceData)(FragInputs input, LayerTexCoord layerTexCoord, out
 #ifdef _MATERIAL_FEATURE_SPECULAR_COLOR
     surfaceData.materialFeatures |= MATERIALFEATUREFLAGS_LIT_SPECULAR_COLOR;
 #endif
+#ifdef _MATERIAL_FEATURE_GLINTS
+    surfaceData.materialFeatures |= MATERIALFEATUREFLAGS_LIT_GLINTS;
+#endif
 
 #ifdef _TANGENTMAP
     #ifdef _NORMALMAP_TANGENT_SPACE_IDX // Normal and tangent use same space
@@ -393,6 +396,16 @@ float ADD_IDX(GetSurfaceData)(FragInputs input, LayerTexCoord layerTexCoord, out
     surfaceData.iridescenceMask = 0.0;
 #endif
 
+#ifdef _MATERIAL_FEATURE_GLINTS
+    surfaceData.glintUV = layerTexCoord.base.uv;
+    surfaceData.glintDUVDX = ddx(layerTexCoord.base.uv);
+    surfaceData.glintDUVDY = ddy(layerTexCoord.base.uv);
+#else
+    surfaceData.glintUV = float2(0.0, 0.0);
+    surfaceData.glintDUVDX = float2(0.0, 0.0);
+    surfaceData.glintDUVDY = float2(0.0, 0.0);
+#endif
+
 #else // #if !defined(LAYERED_LIT_SHADER)
 
     // Mandatory to setup value to keep compiler quiet
@@ -414,6 +427,10 @@ float ADD_IDX(GetSurfaceData)(FragInputs input, LayerTexCoord layerTexCoord, out
     surfaceData.transmittanceColor = float3(1.0, 1.0, 1.0);
     surfaceData.atDistance = 1000000.0;
     surfaceData.transmittanceMask = 0.0;
+
+    surfaceData.glintUV = float2(0.0, 0.0);
+    surfaceData.glintDUVDX = float2(0.0, 0.0);
+    surfaceData.glintDUVDY = float2(0.0, 0.0);
 
 #endif // #if !defined(LAYERED_LIT_SHADER)
 

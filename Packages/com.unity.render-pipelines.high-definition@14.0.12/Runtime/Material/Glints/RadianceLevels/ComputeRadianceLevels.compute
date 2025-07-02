@@ -1,0 +1,155 @@
+#pragma kernel ReduceMaxCubemap
+#pragma kernel ReduceMaxFinal
+#pragma kernel ReduceMaxFinalToLevels
+
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Common.hlsl"
+#include "Packages/com.unity.render-pipelines.core/ShaderLibrary/Sampling/Sampling.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/ShaderLibrary/ShaderVariables.hlsl"
+
+TextureCube<float4> _InputCube;
+
+RWStructuredBuffer<float2> _InputBuffer;
+RWStructuredBuffer<float2> _OutputBuffer;
+RWStructuredBuffer<float> _OutputBufferLevels;
+
+uint3 _DispatchSize;
+
+float _BlackLevel;
+
+#define GROUP_SIZE_DIM 8
+#define GROUP_SIZE_TOTAL ((GROUP_SIZE_DIM)*(GROUP_SIZE_DIM)) 
+
+groupshared float2 gs_minMaxWeightCube[GROUP_SIZE_TOTAL];
+
+[numthreads(GROUP_SIZE_DIM, GROUP_SIZE_DIM, 1)]
+void ReduceMaxCubemap(uint3 groupThreadId : SV_GroupThreadID, uint3 groupId : SV_GroupID, uint3 dispatchThreadId : SV_DispatchThreadID, uint groupThreadIndex : SV_GroupIndex)
+{
+    uint width = 0;
+    uint height = 0;
+    _InputCube.GetDimensions(width, height);
+
+    uint groupIndex = groupId.x + groupId.y * _DispatchSize.x + groupId.z * _DispatchSize.x*_DispatchSize.y;
+
+    float minWeight = FLT_INF;
+    float maxWeight = 0;
+    for (uint k = dispatchThreadId.z; k < 6; k += _DispatchSize.z*1)
+    {
+        for (uint j = dispatchThreadId.y; j < height; j += _DispatchSize.y*GROUP_SIZE_DIM)
+        {
+            for (uint i = dispatchThreadId.x; i < width; i += _DispatchSize.x*GROUP_SIZE_DIM)
+            {
+                float2 uv = (float2(i,j) + 0.5) / float2(width, height);
+                float2 nvc = uv*2 - 1; // CubemapTexelToNVC() but correcter.
+                float3 dir = CubemapTexelToDirection(nvc, k);
+                float3 val = SAMPLE_TEXTURECUBE_LOD(_InputCube, s_point_clamp_sampler, dir, 0).rgb;
+                float weight = dot(val, float3(0.2126, 0.7152, 0.0722));
+                maxWeight = max(maxWeight, weight);
+                if (weight > _BlackLevel)
+                    minWeight = min(minWeight, weight);
+            }
+        }
+    }
+
+    gs_minMaxWeightCube[groupThreadIndex] = float2(minWeight, maxWeight);
+
+    // Make sure everyone has copied it value to the shared memory
+    GroupMemoryBarrierWithGroupSync();
+
+    // do reduction in shared mem
+    UNITY_UNROLL
+    for (uint s = GROUP_SIZE_TOTAL/2; s > 0; s /= 2)
+    {
+        if (groupThreadIndex < s)
+        {
+            gs_minMaxWeightCube[groupThreadIndex].x = min(gs_minMaxWeightCube[groupThreadIndex].x, gs_minMaxWeightCube[groupThreadIndex + s].x);
+            gs_minMaxWeightCube[groupThreadIndex].y = max(gs_minMaxWeightCube[groupThreadIndex].y, gs_minMaxWeightCube[groupThreadIndex + s].y);
+        }
+        GroupMemoryBarrierWithGroupSync();
+    }
+
+    // write result for this block to global mem
+    if (groupThreadIndex == 0)
+    {
+        _OutputBuffer[groupIndex] = gs_minMaxWeightCube[0];
+    }
+}
+
+#define GROUP_SIZE_FINAL 32
+
+groupshared float2 gs_minMaxWeightFinal[GROUP_SIZE_FINAL];
+
+float2 ReduceMaxFinalCommon(uint groupThreadIndex)
+{
+    uint count;
+    uint stride;
+    _InputBuffer.GetDimensions(count, stride);
+
+    float minWeight = FLT_INF;
+    float maxWeight = 0;
+    for (uint i = groupThreadIndex; i < count; i += GROUP_SIZE_FINAL)
+    {
+        minWeight = min(minWeight, _InputBuffer[i].x);
+        maxWeight = max(maxWeight, _InputBuffer[i].y);
+    }
+
+    gs_minMaxWeightFinal[groupThreadIndex] = float2(minWeight, maxWeight);
+
+    // Make sure everyone has copied it value to the shared memory
+    GroupMemoryBarrierWithGroupSync();
+
+    // do reduction in shared mem
+    UNITY_UNROLL
+    for (uint s = GROUP_SIZE_FINAL/2; s > 0; s /= 2)
+    {
+        if (groupThreadIndex < s)
+        {
+            gs_minMaxWeightFinal[groupThreadIndex].x = min(gs_minMaxWeightFinal[groupThreadIndex].x, gs_minMaxWeightFinal[groupThreadIndex + s].x);
+            gs_minMaxWeightFinal[groupThreadIndex].y = max(gs_minMaxWeightFinal[groupThreadIndex].y, gs_minMaxWeightFinal[groupThreadIndex + s].y);
+        }
+        GroupMemoryBarrierWithGroupSync();
+    }
+
+    // Sanitize min and max values to be above _BlackLevel
+    minWeight = gs_minMaxWeightFinal[0].x;
+    maxWeight = gs_minMaxWeightFinal[0].y;
+    minWeight = max(_BlackLevel, min(minWeight, maxWeight));
+    maxWeight = max(minWeight, maxWeight);
+    return float2(minWeight, maxWeight);
+}
+
+[numthreads(GROUP_SIZE_FINAL, 1, 1)]
+void ReduceMaxFinal(uint groupThreadIndex : SV_GroupIndex)
+{
+    float2 minMaxWeight = ReduceMaxFinalCommon(groupThreadIndex);
+
+    // write result for this block to global mem
+    if (groupThreadIndex == 0)
+    {
+        _OutputBuffer[0] = minMaxWeight;
+    }
+}
+
+[numthreads(GROUP_SIZE_FINAL, 1, 1)]
+void ReduceMaxFinalToLevels(uint groupThreadIndex : SV_GroupIndex)
+{
+    float2 minMaxWeight = ReduceMaxFinalCommon(groupThreadIndex);
+
+    // NOTE: We currently support 8 levels and 4 levels.
+
+    // write result for this block to global mem
+    if (groupThreadIndex < 8+4)
+    {
+        uint levelIndex = groupThreadIndex < 8 ? groupThreadIndex : (groupThreadIndex-8);
+        uint levelCount = groupThreadIndex < 8 ? 8 : 4;
+
+        float2 logMinMaxWeight = log(minMaxWeight);
+
+        float logLevel = lerp(logMinMaxWeight.x, logMinMaxWeight.y, float(levelIndex)/float(levelCount-1));
+        float level = levelIndex > 0 ? exp(logLevel) : 0;
+
+        // This does not look good!
+        //level = minMaxWeight.y * sqrt(float(groupThreadIndex)/float(LEVEL_COUNT-1));
+
+        _OutputBufferLevels[groupThreadIndex] = level;
+    }
+}

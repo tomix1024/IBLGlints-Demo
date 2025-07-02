@@ -113,6 +113,31 @@ Shader "HDRP/Lit"
         _ATDistance("Transmittance Absorption Distance", Float) = 1.0
         [ToggleUI] _TransparentWritingMotionVec("_TransparentWritingMotionVec", Float) = 0.0
 
+
+        // Glints
+        _Glint2023NoiseMap("_Glint2023NoiseMap", 2D) = "black" {}
+        _ScreenSpaceScale("_ScreenSpaceScale", Float) = 1.0
+        _Glintiness("_Glintiness", Range(0, 1)) = 1.0
+        _LogMicrofacetDensity("_LogMicrofacetDensity", Float) = 12.0
+        _HalfwaySlopeScale("_HalfwaySlopeScale", Float) = 1.0
+        _DensityRandomization("_DensityRandomization", Float) = 0
+        _FixGatingNlt1("_FixGatingNlt1", Range(0, 1)) = 1
+        _LogSinSunAngle("_LogSinSunAngle < 0", Range(-7, 0)) = -5.38 // 4.6e-3 // TODO maybe sin(angle) in 0, 1 instead?
+        [HideInInspector]_SunSolidAngle("_SunSolidAngle", Float) = 0.00006670272
+        _ZeroIfPgt1("_ZeroIfPgt1", Range(0, 1)) = 0
+        _GatingSmoothWidth("_GatingSmoothWidth", Range(0, 1)) = 0.1
+        [Enum(Uniform, 0, Ungated, 1, Gated, 2, DualGated, 3)] _GlintSurfaceDistribution("_GlintSurfaceDistribution", Int) = 3
+        [Enum(Discrete4, 0, Discrete8, 1, Wang2020, 2)] _GlintIBLVariant("_GlintIBLVariant", Int) = 0
+        [Enum(Ungated, 1, Gated, 2, DualGated, 3)] _GlintIBLDistribution("_GlintIBLDistribution", Int) = 3
+        [Enum(Specular LTC, 0, NDF LTC, 1, NDF LTC Aligned, 2)] _GlintNDFIntegrationMode("_GlintNDFIntegrationMode", Int) = 0
+        [ToggleUI]_GlintBrokenOneMinusPPowN("_GlintBrokenOneMinusPPowN", Float) = 0
+
+        [ToggleUI]_GlintVisualizeMultinomial("_GlintVisualizeMultinomial", Int) = 0
+        [ToggleUI]_GlintVisualizeMultinomialWithLi("_GlintVisualizeMultinomialWithLi", Int) = 0
+        _GlintVisualizeMultinomialIndex("_GlintVisualizeMultinomialIndex", Int) = 0
+        [ToggleUI]_GlintVisualizeMultinomialEx("_GlintVisualizeMultinomialEx", Int) = 0
+
+
         // Stencil state
 
         // Forward
@@ -163,7 +188,7 @@ Shader "HDRP/Lit"
         // Following enum should be material feature flags (i.e bitfield), however due to Gbuffer encoding constrain many combination exclude each other
         // so we use this enum as "material ID" which can be interpreted as preset of bitfield of material feature
         // The only material feature flag that can be added in all cases is clear coat
-        [Enum(Subsurface Scattering, 0, Standard, 1, Anisotropy, 2, Iridescence, 3, Specular Color, 4, Translucent, 5)] _MaterialID("MaterialId", Int) = 1 // MaterialId.Standard
+        [Enum(Subsurface Scattering, 0, Standard, 1, Anisotropy, 2, Iridescence, 3, Specular Color, 4, Translucent, 5, Glints, 6)] _MaterialID("MaterialId", Int) = 1 // MaterialId.Standard
         [ToggleUI] _TransmissionEnable("_TransmissionEnable", Float) = 1.0
 
         _DisplacementMode("DisplacementMode", Int) = 0
@@ -309,12 +334,22 @@ Shader "HDRP/Lit"
     #pragma shader_feature_local_fragment _MATERIAL_FEATURE_CLEAR_COAT
     #pragma shader_feature_local_fragment _MATERIAL_FEATURE_IRIDESCENCE
     #pragma shader_feature_local_fragment _MATERIAL_FEATURE_SPECULAR_COLOR
+    #pragma shader_feature_local_fragment _MATERIAL_FEATURE_GLINTS
     #pragma shader_feature_local_raytracing _MATERIAL_FEATURE_SUBSURFACE_SCATTERING
     #pragma shader_feature_local_raytracing _MATERIAL_FEATURE_TRANSMISSION
     #pragma shader_feature_local_raytracing _MATERIAL_FEATURE_ANISOTROPY
     #pragma shader_feature_local_raytracing _MATERIAL_FEATURE_CLEAR_COAT
     #pragma shader_feature_local_raytracing _MATERIAL_FEATURE_IRIDESCENCE
     #pragma shader_feature_local_raytracing _MATERIAL_FEATURE_SPECULAR_COLOR
+    #pragma shader_feature_local_raytracing _MATERIAL_FEATURE_GLINTS
+
+    #pragma shader_feature_local_fragment _ _GLINTS_NDF_DEDICATED_LTC
+    #pragma shader_feature_local_fragment _GLINTS_SURFACE_DISTRIBUTION_UNIFORM _GLINTS_SURFACE_DISTRIBUTION_UNGATED _GLINTS_SURFACE_DISTRIBUTION_GATED _GLINTS_SURFACE_DISTRIBUTION_DUALGATED
+    #pragma shader_feature_local_fragment _GLINTS_IBL_VARIANT_DISCRETE4 _GLINTS_IBL_VARIANT_DISCRETE8 _GLINTS_IBL_VARIANT_WANG2020
+    #pragma shader_feature_local_fragment _GLINTS_IBL_DISTRIBUTION_UNGATED _GLINTS_IBL_DISTRIBUTION_GATED _GLINTS_IBL_DISTRIBUTION_DUALGATED
+    #pragma shader_feature_local_fragment _ _GLINTS_BROKEN_ONEMINUSPPOWN
+
+    #pragma shader_feature_local_fragment _ _GLINTS_VISUALIZE_MULTINOMIAL
 
     #pragma shader_feature_local _ADD_PRECOMPUTED_VELOCITY
 

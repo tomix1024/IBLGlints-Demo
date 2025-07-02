@@ -796,6 +796,10 @@ void GetSurfaceAndBuiltinData(FragInputs input, float3 V, inout PositionInputs p
     surfaceData.iridescenceThickness = 0.0;
     surfaceData.iridescenceMask = 0.0;
 
+    surfaceData.glintUV = float2(0.0, 0.0);
+    surfaceData.glintDUVDX = float2(0.0, 0.0);
+    surfaceData.glintDUVDY = float2(0.0, 0.0);
+
     // Transparency parameters
     // Use thickness from SSS
     surfaceData.ior = 1.0;

@@ -18,7 +18,8 @@ namespace UnityEngine.Rendering.HighDefinition
             LitTransmission = 1 << 3,
             LitAnisotropy = 1 << 4,
             LitIridescence = 1 << 5,
-            LitClearCoat = 1 << 6
+            LitClearCoat = 1 << 6,
+            LitGlints = 1 << 7
         };
 
         //-----------------------------------------------------------------------------
@@ -89,6 +90,14 @@ namespace UnityEngine.Rendering.HighDefinition
             public float iridescenceThickness;
             [SurfaceDataAttributes("Iridescence Mask", precision = FieldPrecision.Real)]
             public float iridescenceMask;
+
+            // Glints
+            [SurfaceDataAttributes(precision = FieldPrecision.Real)]
+            public Vector2 glintUV;
+            [SurfaceDataAttributes(precision = FieldPrecision.Real)]
+            public Vector2 glintDUVDX;
+            [SurfaceDataAttributes(precision = FieldPrecision.Real)]
+            public Vector2 glintDUVDY;
 
             // Forward property only
             [SurfaceDataAttributes(new string[] { "Geometric Normal", "Geometric Normal View Space" }, true, precision = FieldPrecision.Real, checkIsNormalized = true)]
@@ -169,6 +178,14 @@ namespace UnityEngine.Rendering.HighDefinition
             [SurfaceDataAttributes(precision = FieldPrecision.Real)]
             public float iridescenceMask;
 
+            // Glints
+            [SurfaceDataAttributes(precision = FieldPrecision.Real)]
+            public Vector2 glintUV;
+            [SurfaceDataAttributes(precision = FieldPrecision.Real)]
+            public Vector2 glintDUVDX;
+            [SurfaceDataAttributes(precision = FieldPrecision.Real)]
+            public Vector2 glintDUVDY;
+
             // ClearCoat
             [SurfaceDataAttributes(precision = FieldPrecision.Real)]
             public float coatRoughness; // Automatically fill
@@ -202,23 +219,27 @@ namespace UnityEngine.Rendering.HighDefinition
         public override void Build(HDRenderPipelineAsset hdAsset, HDRenderPipelineRuntimeResources defaultResources)
         {
             PreIntegratedFGD.instance.Build(PreIntegratedFGD.FGDIndex.FGD_GGXAndDisneyDiffuse);
+            PreIntegratedFGD.instance.Build(PreIntegratedFGD.FGDIndex.FGD_DGGXOnly);
             LTCAreaLight.instance.Build();
         }
 
         public override void Cleanup()
         {
             PreIntegratedFGD.instance.Cleanup(PreIntegratedFGD.FGDIndex.FGD_GGXAndDisneyDiffuse);
+            PreIntegratedFGD.instance.Cleanup(PreIntegratedFGD.FGDIndex.FGD_DGGXOnly);
             LTCAreaLight.instance.Cleanup();
         }
 
         public override void RenderInit(CommandBuffer cmd)
         {
             PreIntegratedFGD.instance.RenderInit(PreIntegratedFGD.FGDIndex.FGD_GGXAndDisneyDiffuse, cmd);
+            PreIntegratedFGD.instance.RenderInit(PreIntegratedFGD.FGDIndex.FGD_DGGXOnly, cmd);
         }
 
         public override void Bind(CommandBuffer cmd)
         {
             PreIntegratedFGD.instance.Bind(cmd, PreIntegratedFGD.FGDIndex.FGD_GGXAndDisneyDiffuse);
+            PreIntegratedFGD.instance.Bind(cmd, PreIntegratedFGD.FGDIndex.FGD_DGGXOnly);
             LTCAreaLight.instance.Bind(cmd);
         }
     }

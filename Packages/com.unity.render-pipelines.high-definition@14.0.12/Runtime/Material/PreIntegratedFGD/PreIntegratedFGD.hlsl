@@ -47,3 +47,15 @@ void GetPreIntegratedFGDCharlieAndFabricLambert(float NdotV, float perceptualRou
 
     reflectivity = preFGD.y;
 }
+
+TEXTURE2D(_PreIntegratedFGD_DGGXOnly);
+
+void GetPreIntegratedFGDDGGXOnly(float NdotV, float perceptualRoughness, out float FGD)
+{
+    // Read the texture
+    // Texture stores values in [0, 1], but represents values in [0, 2].
+    float3 preFGD = 2*SAMPLE_TEXTURE2D_LOD(_PreIntegratedFGD_DGGXOnly, s_linear_clamp_sampler, float2(sqrt(NdotV), perceptualRoughness), 0).xyz;
+
+    // Only single channel, no fresnelF0 interpolation!
+    FGD = preFGD.x; // preFGD.y;
+}

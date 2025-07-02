@@ -11,6 +11,8 @@
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/SubsurfaceScattering/SubsurfaceScattering.hlsl"
 #include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/NormalBuffer.hlsl"
 #include "Packages/com.unity.render-pipelines.core/ShaderLibrary/VolumeRendering.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/Glints/RadianceLevels/RadianceLevels.hlsl"
+#include "Packages/com.unity.render-pipelines.high-definition/Runtime/Material/Glints/Glints2024.hlsl"
 
 //-----------------------------------------------------------------------------
 // Configuration
@@ -244,6 +246,13 @@ void FillMaterialIridescence(float mask, float thickness, inout BSDFData bsdfDat
     bsdfData.iridescenceThickness = thickness;
 }
 
+void FillMaterialGlints(float2 glintUV, float2 glintDUVDX, float2 glintDUVDY, inout BSDFData bsdfData)
+{
+    bsdfData.glintUV = glintUV;
+    bsdfData.glintDUVDX = glintDUVDX;
+    bsdfData.glintDUVDY = glintDUVDY;
+}
+
 // Note: this modify the parameter perceptualRoughness and fresnel0, so they need to be setup
 void FillMaterialClearCoatData(float coatMask, inout BSDFData bsdfData)
 {
@@ -441,6 +450,13 @@ BSDFData ConvertSurfaceDataToBSDFData(uint2 positionSS, SurfaceData surfaceData)
     if (HasFlag(surfaceData.materialFeatures, MATERIALFEATUREFLAGS_LIT_IRIDESCENCE))
     {
         FillMaterialIridescence(surfaceData.iridescenceMask, surfaceData.iridescenceThickness, bsdfData);
+    }
+
+    if (HasFlag(surfaceData.materialFeatures, MATERIALFEATUREFLAGS_LIT_GLINTS))
+    {
+        FillMaterialGlints(surfaceData.glintUV, surfaceData.glintDUVDX, surfaceData.glintDUVDY, bsdfData);
+        // Glints also need tangent and bitangent, we just recycle the `FillMaterialAnisotropy` method here...
+        FillMaterialAnisotropy(0, surfaceData.tangentWS, cross(surfaceData.normalWS, surfaceData.tangentWS), bsdfData);
     }
 
     if (HasFlag(surfaceData.materialFeatures, MATERIALFEATUREFLAGS_LIT_CLEAR_COAT))
@@ -1088,6 +1104,11 @@ struct PreLightData
 
     float3 specularFGD;              // Store preintegrated BSDF for both specular and diffuse
     float  diffuseFGD;
+    float  ndfonlyFGD;               // For Glints
+
+#ifdef _GLINTS_NDF_DEDICATED_LTC
+    float3x3 ltcTransformDGGXonly;   // For Glints
+#endif // _GLINTS_NDF_DEDICATED_LTC
 
     // Area lights (17 VGPRs)
     // TODO: 'orthoBasisViewNormal' is just a rotation around the normal and should thus be just 1x VGPR.
@@ -1172,6 +1193,7 @@ PreLightData GetPreLightData(float3 V, PositionInputs posInput, inout BSDFData b
 #ifdef USE_DIFFUSE_LAMBERT_BRDF
     preLightData.diffuseFGD = 1.0;
 #endif
+    GetPreIntegratedFGDDGGXOnly(clampedNdotV, preLightData.iblPerceptualRoughness, preLightData.ndfonlyFGD);
 
 #ifdef LIT_USE_GGX_ENERGY_COMPENSATION
     // Ref: Practical multiple scattering compensation for microfacet models.
@@ -1228,6 +1250,17 @@ PreLightData GetPreLightData(float3 V, PositionInputs posInput, inout BSDFData b
     preLightData.ltcTransformSpecular      = 0.0;
     preLightData.ltcTransformSpecular._m22 = 1.0;
     preLightData.ltcTransformSpecular._m00_m02_m11_m20 = SAMPLE_TEXTURE2D_ARRAY_LOD(_LtcData, s_linear_clamp_sampler, uv, LTCLIGHTINGMODEL_GGX, 0);
+
+#ifdef _GLINTS_NDF_DEDICATED_LTC
+    preLightData.ltcTransformDGGXonly = 0.0;
+    preLightData.ltcTransformDGGXonly._m22 = 1.0;
+    if (_GlintNDFIntegrationMode == 1)
+        preLightData.ltcTransformDGGXonly._m00_m02_m11_m20 = SAMPLE_TEXTURE2D_ARRAY_LOD(_LtcData, s_linear_clamp_sampler, uv, LTCLIGHTINGMODEL_DGGXONLY, 0);
+    else if (_GlintNDFIntegrationMode == 2)
+        preLightData.ltcTransformDGGXonly._m00_m02_m11_m20 = SAMPLE_TEXTURE2D_ARRAY_LOD(_LtcData, s_linear_clamp_sampler, uv, LTCLIGHTINGMODEL_DGGXONLYALIGNED, 0);
+    else
+        preLightData.ltcTransformDGGXonly._m00_m02_m11_m20 = SAMPLE_TEXTURE2D_ARRAY_LOD(_LtcData, s_linear_clamp_sampler, uv, LTCLIGHTINGMODEL_GGX, 0);
+#endif // _GLINTS_NDF_DEDICATED_LTC
 
     // Construct a right-handed view-dependent orthogonal basis around the normal
     preLightData.orthoBasisViewNormal = GetOrthoBasisViewNormal(V, N, preLightData.NdotV);
@@ -1370,8 +1403,23 @@ CBSDF EvaluateBSDF(float3 V, float3 L, PreLightData preLightData, BSDFData bsdfD
     }
     else
     {
-        // We use abs(NdotL) to handle the none case of double sided
-        DV = DV_SmithJointGGX(NdotH, abs(NdotL), clampedNdotV, bsdfData.roughnessT, preLightData.partLambdaV);
+        if (HasFlag(bsdfData.materialFeatures, MATERIALFEATUREFLAGS_LIT_GLINTS) &&
+            dot(bsdfData.glintDUVDX, bsdfData.glintDUVDX) > 0 && dot(bsdfData.glintDUVDY, bsdfData.glintDUVDY) > 0)
+        {
+            float Vis = V_SmithJointGGX(abs(NdotL), clampedNdotV, bsdfData.roughnessT, preLightData.partLambdaV);
+            float3 H = (L + V) * invLenLV;
+            float TdotH = dot(bsdfData.tangentWS, H);
+            float BdotH = dot(bsdfData.bitangentWS, H);
+            float3 halfwayTS = float3(TdotH, BdotH, NdotH);
+            float D = SampleGlints2024NDF(halfwayTS, LdotH, bsdfData.roughnessT, bsdfData.glintUV, bsdfData.glintDUVDX, bsdfData.glintDUVDY);
+            D = lerp(D_GGX(NdotH, bsdfData.roughnessT), D, _Glintiness);
+            DV = max(0, D) * Vis;
+        }
+        else
+        {
+            // We use abs(NdotL) to handle the none case of double sided
+            DV = DV_SmithJointGGX(NdotH, abs(NdotL), clampedNdotV, bsdfData.roughnessT, preLightData.partLambdaV);
+        }
     }
 
     float3 specTerm = F * DV;
@@ -1738,6 +1786,37 @@ DirectLighting EvaluateBSDF_Rect(   LightLoopContext lightLoopContext,
 #else
             ltcValue = PolygonIrradiance(LS);
 #endif
+            if (HasFlag(bsdfData.materialFeatures, MATERIALFEATUREFLAGS_LIT_GLINTS) &&
+                dot(bsdfData.glintDUVDX, bsdfData.glintDUVDX) > 0 && dot(bsdfData.glintDUVDY, bsdfData.glintDUVDY) > 0)
+            {
+                {
+                    // TODO validate against using separate LTC transform.
+                    // Use `ltcValue` at this stage for NDF integration!
+                    float ltcValueNDF = ltcValue.x;
+    #ifdef _GLINTS_NDF_DEDICATED_LTC
+                    {
+                        float4x3 LSD = mul(lightVerts, preLightData.ltcTransformDGGXonly);
+                        ltcValueNDF = PolygonIrradiance(LSD);
+                    }
+    #endif // _GLINTS_NDF__GLINTS_NDF_DEDICATED_LTC
+                    float integratedNDF = preLightData.ndfonlyFGD * ltcValueNDF;
+
+                    float3 L = normalize(lightData.positionRWS);
+
+                    // TODO use mean light dir for halfway computation here.
+                    float3 H = normalize(L + V);
+                    float LdotH = dot(L, H);
+                    float TdotH = dot(bsdfData.tangentWS, H);
+                    float BdotH = dot(bsdfData.bitangentWS, H);
+                    float NdotH = dot(bsdfData.normalWS, H);
+                    float3 halfwayTS = float3(TdotH, BdotH, NdotH);
+
+                    float D = SampleGlints2024NDF_Area(halfwayTS, LdotH, bsdfData.roughnessT, integratedNDF, lightVerts, bsdfData.glintUV, bsdfData.glintDUVDX, bsdfData.glintDUVDY);
+                    // DIRECTLY "COMMIT" THE RESULT OF THE GLINTS TO `ltcValue`!
+                    ltcValue *= lerp(1, D, _Glintiness);  // TODO anything to take into account here?!
+                }
+            }
+
             ltcValue *= lightData.specularDimmer;
 
             // Only apply cookie if there is one
@@ -2053,6 +2132,45 @@ IndirectLighting EvaluateBSDF_Env(  LightLoopContext lightLoopContext,
     if (GPUImageBasedLightingType == GPUIMAGEBASEDLIGHTINGTYPE_REFLECTION)
     {
         envLighting = F * preLD.rgb;
+
+
+        if (HasFlag(bsdfData.materialFeatures, MATERIALFEATUREFLAGS_LIT_GLINTS) &&
+            dot(bsdfData.glintDUVDX, bsdfData.glintDUVDX) > 0 && dot(bsdfData.glintDUVDY, bsdfData.glintDUVDY) > 0)
+        {
+            // Just in case?!
+            R = normalize(R);
+
+            float glintAttenuation = 1;
+#if defined(_GLINTS_IBL_VARIANT_DISCRETE4)
+            {
+                float4 levels, probs;
+                GetPreIntegratedLightLevelsFromEnv(lightLoopContext, R, preLightData.iblPerceptualRoughness, levels, probs);
+                //envLighting *= dot(levels, probs);
+                float roughness = PerceptualRoughnessToRoughness(preLightData.iblPerceptualRoughness);
+                glintAttenuation = SampleGlints2024NDF_IBL(levels, probs, roughness, preLightData.ndfonlyFGD, bsdfData.glintUV, bsdfData.glintDUVDX, bsdfData.glintDUVDY);
+            }
+#elif defined(_GLINTS_IBL_VARIANT_DISCRETE8)
+            {
+                float2x4 levels, probs;
+                GetPreIntegratedLightLevelsFromEnv(lightLoopContext, R, preLightData.iblPerceptualRoughness, levels, probs);
+                //envLighting *= dot(levels[0], probs[0]) + dot(levels[1], probs[1]);
+                float roughness = PerceptualRoughnessToRoughness(preLightData.iblPerceptualRoughness);
+                glintAttenuation = SampleGlints2024NDF_IBL(levels, probs, roughness, preLightData.ndfonlyFGD, bsdfData.glintUV, bsdfData.glintDUVDX, bsdfData.glintDUVDY);
+            }
+#elif defined(_GLINTS_IBL_VARIANT_WANG2020)
+            {
+                float roughness = PerceptualRoughnessToRoughness(preLightData.iblPerceptualRoughness);
+                glintAttenuation = SampleGlints2024NDF_IBL_Wang2020(roughness, preLightData.ndfonlyFGD, bsdfData.glintUV, bsdfData.glintDUVDX, bsdfData.glintDUVDY);
+            }
+#endif
+            envLighting *= lerp(1, glintAttenuation, _Glintiness);
+#if defined(_GLINTS_VISUALIZE_MULTINOMIAL)
+            envLighting = glintAttenuation.rrr;
+#endif
+
+        }
+
+
 
         // Note: we have the same EnvIntersection weight used for the coat, but NOT the same headroom left to be used in the
         // hierarchy, so we saved the intersection weight here:

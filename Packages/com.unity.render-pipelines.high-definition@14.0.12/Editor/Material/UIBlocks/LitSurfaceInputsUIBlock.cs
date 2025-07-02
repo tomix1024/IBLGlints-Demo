@@ -100,6 +100,28 @@ namespace UnityEditor.Rendering.HighDefinition
             // Clear Coat
             public static GUIContent coatMaskText = new GUIContent("Coat Mask", "Attenuate the coating effect.");
 
+            // Glints
+            public static GUIContent glint2023NoiseMapText = new GUIContent("Glint2023NoiseMap");
+            public static GUIContent screenSpaceScaleText = new GUIContent("ScreenSpaceScale");
+            public static GUIContent glintinessText = new GUIContent("Glintiness");
+            public static GUIContent logMicrofacetDensityText = new GUIContent("LogMicrofacetDensity");
+            public static GUIContent halfwaySlopeScaleText = new GUIContent("HalfwaySlopeScale", "1/MicrofacetRoughness in Delio&Belcour2023");
+            public static GUIContent densityRandomizationText = new GUIContent("DensityRandomization");
+            public static GUIContent fixGatingNlt1Text = new GUIContent("FixGating N<1");
+            public static GUIContent logSinSunAngleText = new GUIContent("LogSinSunAngle");
+            public static GUIContent zeroIfPgt1Text = new GUIContent("Zero if p > 1");
+            public static GUIContent gatingSmoothWidthText = new GUIContent("Gating Smooth Width");
+            public static GUIContent glintSurfaceDistributionText = new GUIContent("Surface Distribution", "How do distribute glints over the surface?");
+            public static GUIContent glintIBLVariantText = new GUIContent("GlintIBLVariant");
+            public static GUIContent glintIBLDistributionText = new GUIContent("GlintIBLDistribution");
+            public static GUIContent glintNDFIntegrationModeText = new GUIContent("NDFIntegrationMode");
+            public static GUIContent glintBrokenOneMinusPPowNText = new GUIContent("Broken (1-p)^N");
+
+            public static GUIContent glintVisualizeMultinomialText = new GUIContent("GlintVisualizeMultinomial");
+            public static GUIContent glintVisualizeMultinomialWithLiText = new GUIContent("GlintVisualizeMultinomialWithLi");
+            public static GUIContent glintVisualizeMultinomialIndexText = new GUIContent("GlintVisualizeMultinomialIndex");
+            public static GUIContent glintVisualizeMultinomialExText = new GUIContent("GlintVisualizeMultinomialEx");
+
             // Layer Options
             public static readonly GUIContent layerTexWorldScaleText = EditorGUIUtility.TrTextContent("World Scale", "Sets the tiling factor of the Planar/Trilinear mapping.");
             public static readonly GUIContent UVBlendMaskText = EditorGUIUtility.TrTextContent("BlendMask UV Mapping", "Specifies the UV Mapping mode of the layer.");
@@ -202,6 +224,48 @@ namespace UnityEditor.Rendering.HighDefinition
         const string kIridescenceThicknessMap = "_IridescenceThicknessMap";
         MaterialProperty iridescenceThicknessRemap = null;
         const string kIridescenceThicknessRemap = "_IridescenceThicknessRemap";
+
+        // Glints
+        MaterialProperty glint2023NoiseMap = null;
+        const string kGlint2023NoiseMap = "_Glint2023NoiseMap";
+        MaterialProperty screenSpaceScale = null;
+        const string kScreenSpaceScale = "_ScreenSpaceScale";
+        MaterialProperty glintiness = null;
+        const string kGlintiness = "_Glintiness";
+        MaterialProperty logMicrofacetDensity = null;
+        const string kLogMicrofacetDensity = "_LogMicrofacetDensity";
+        MaterialProperty halfwaySlopeScale = null;
+        const string kHalfwaySlopeScale = "_HalfwaySlopeScale";
+        MaterialProperty densityRandomization = null;
+        const string kDensityRandomization = "_DensityRandomization";
+        MaterialProperty fixGatingNlt1 = null;
+        const string kFixGatingNlt1 = "_FixGatingNlt1";
+        MaterialProperty logSinSunAngle = null;
+        const string kLogSinSunAngle = "_LogSinSunAngle";
+        MaterialProperty zeroIfPgt1 = null;
+        const string kZeroIfPgt1 = "_ZeroIfPgt1";
+        MaterialProperty gatingSmoothWidth = null;
+        const string kGatingSmoothWidth = "_GatingSmoothWidth";
+        MaterialProperty glintSurfaceDistribution = null;
+        const string kGlintSurfaceDistribution = "_GlintSurfaceDistribution";
+        MaterialProperty glintIBLVariant = null;
+        const string kGlintIBLVariant = "_GlintIBLVariant";
+        MaterialProperty glintIBLDistribution = null;
+        const string kGlintIBLDistribution = "_GlintIBLDistribution";
+        MaterialProperty glintNDFIntegrationMode = null;
+        const string kGlintNDFIntegrationMode = "_GlintNDFIntegrationMode";
+        MaterialProperty glintBrokenOneMinusPPowN = null;
+        const string kGlintBrokenOneMinusPPowN = "_GlintBrokenOneMinusPPowN";
+
+        MaterialProperty glintVisualizeMultinomial = null;
+        const string kGlintVisualizeMultinomial = "_GlintVisualizeMultinomial";
+        MaterialProperty glintVisualizeMultinomialWithLi = null;
+        const string kGlintVisualizeMultinomialWithLi = "_GlintVisualizeMultinomialWithLi";
+        MaterialProperty glintVisualizeMultinomialIndex = null;
+        const string kGlintVisualizeMultinomialIndex = "_GlintVisualizeMultinomialIndex";
+        MaterialProperty glintVisualizeMultinomialEx = null;
+        const string kGlintVisualizeMultinomialEx = "_GlintVisualizeMultinomialEx";
+
 
         // Material ID
         MaterialProperty materialID = null;
@@ -326,6 +390,28 @@ namespace UnityEditor.Rendering.HighDefinition
             iridescenceThicknessMap = FindProperty(kIridescenceThicknessMap);
             iridescenceThicknessRemap = FindProperty(kIridescenceThicknessRemap);
 
+            // Glints
+            glint2023NoiseMap = FindProperty(kGlint2023NoiseMap);
+            screenSpaceScale = FindProperty(kScreenSpaceScale);
+            glintiness = FindProperty(kGlintiness);
+            logMicrofacetDensity = FindProperty(kLogMicrofacetDensity);
+            halfwaySlopeScale = FindProperty(kHalfwaySlopeScale);
+            densityRandomization = FindProperty(kDensityRandomization);
+            fixGatingNlt1 = FindProperty(kFixGatingNlt1);
+            logSinSunAngle = FindProperty(kLogSinSunAngle);
+            zeroIfPgt1 = FindProperty(kZeroIfPgt1);
+            gatingSmoothWidth = FindProperty(kGatingSmoothWidth);
+            glintSurfaceDistribution = FindProperty(kGlintSurfaceDistribution);
+            glintIBLVariant = FindProperty(kGlintIBLVariant);
+            glintIBLDistribution = FindProperty(kGlintIBLDistribution);
+            glintNDFIntegrationMode = FindProperty(kGlintNDFIntegrationMode);
+            glintBrokenOneMinusPPowN = FindProperty(kGlintBrokenOneMinusPPowN);
+
+            glintVisualizeMultinomial = FindProperty(kGlintVisualizeMultinomial);
+            glintVisualizeMultinomialWithLi = FindProperty(kGlintVisualizeMultinomialWithLi);
+            glintVisualizeMultinomialIndex = FindProperty(kGlintVisualizeMultinomialIndex);
+            glintVisualizeMultinomialEx = FindProperty(kGlintVisualizeMultinomialEx);
+
             // Sub surface
             diffusionProfileHash = FindPropertyLayered(kDiffusionProfileHash, m_LayerCount);
             diffusionProfileAsset = FindPropertyLayered(kDiffusionProfileAsset, m_LayerCount);
@@ -395,7 +481,8 @@ namespace UnityEditor.Rendering.HighDefinition
             bool hasMetallic = materials.All(m =>
                 m.GetMaterialId() == MaterialId.LitStandard ||
                 m.GetMaterialId() == MaterialId.LitAniso ||
-                m.GetMaterialId() == MaterialId.LitIridescence);
+                m.GetMaterialId() == MaterialId.LitIridescence ||
+                m.GetMaterialId() == MaterialId.LitGlints);
 
             if (maskMap[m_LayerIndex].textureValue == null)
             {
@@ -502,6 +589,9 @@ namespace UnityEditor.Rendering.HighDefinition
                         break;
                     case MaterialId.LitIridescence:
                         ShaderIridescenceInputGUI();
+                        break;
+                    case MaterialId.LitGlints:
+                        ShaderGlintsInputGUI();
                         break;
 
                     default:
@@ -622,7 +712,38 @@ namespace UnityEditor.Rendering.HighDefinition
 
         void ShaderClearCoatInputGUI()
         {
+            EditorGUILayout.LabelField("Coat", EditorStyles.boldLabel);
+
             materialEditor.TexturePropertySingleLine(Styles.coatMaskText, coatMaskMap, coatMask);
+        }
+
+        void ShaderGlintsInputGUI()
+        {
+            EditorGUILayout.LabelField("Glints", EditorStyles.boldLabel);
+
+            materialEditor.TexturePropertySingleLine(Styles.glint2023NoiseMapText, glint2023NoiseMap);
+
+            materialEditor.ShaderProperty(screenSpaceScale, Styles.screenSpaceScaleText);
+            materialEditor.ShaderProperty(glintiness, Styles.glintinessText);
+            materialEditor.ShaderProperty(logMicrofacetDensity, Styles.logMicrofacetDensityText);
+            materialEditor.ShaderProperty(halfwaySlopeScale, Styles.halfwaySlopeScaleText);
+            materialEditor.ShaderProperty(densityRandomization, Styles.densityRandomizationText);
+            materialEditor.ShaderProperty(fixGatingNlt1, Styles.fixGatingNlt1Text);
+            materialEditor.ShaderProperty(logSinSunAngle, Styles.logSinSunAngleText);
+            materialEditor.ShaderProperty(zeroIfPgt1, Styles.zeroIfPgt1Text);
+            materialEditor.ShaderProperty(gatingSmoothWidth, Styles.gatingSmoothWidthText);
+            materialEditor.ShaderProperty(glintSurfaceDistribution, Styles.glintSurfaceDistributionText);
+            materialEditor.ShaderProperty(glintIBLVariant, Styles.glintIBLVariantText);
+            materialEditor.ShaderProperty(glintIBLDistribution, Styles.glintIBLDistributionText);
+            materialEditor.ShaderProperty(glintNDFIntegrationMode, Styles.glintNDFIntegrationModeText);
+            materialEditor.ShaderProperty(glintBrokenOneMinusPPowN, Styles.glintBrokenOneMinusPPowNText);
+
+            materialEditor.ShaderProperty(glintVisualizeMultinomial, Styles.glintVisualizeMultinomialText);
+            materialEditor.ShaderProperty(glintVisualizeMultinomialWithLi, Styles.glintVisualizeMultinomialWithLiText);
+            materialEditor.ShaderProperty(glintVisualizeMultinomialIndex, Styles.glintVisualizeMultinomialIndexText);
+            materialEditor.ShaderProperty(glintVisualizeMultinomialEx, Styles.glintVisualizeMultinomialExText);
+
+            EditorGUILayout.Space();
         }
 
         void DrawLayerOptionsGUI()

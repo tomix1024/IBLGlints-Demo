@@ -28,7 +28,8 @@ namespace UnityEngine.Rendering.HighDefinition
             FGD_GGXAndDisneyDiffuse = 0,
             FGD_CharlieAndFabricLambert = 1,
             FGD_Marschner = 2,
-            Count = 3
+            FGD_DGGXOnly = 3, // for glints
+            Count = 4
         }
 
         bool[] m_isInit = new bool[(int)FGDIndex.Count];
@@ -84,6 +85,16 @@ namespace UnityEngine.Rendering.HighDefinition
                         m_PreIntegratedFGD[(int)index].filterMode = FilterMode.Bilinear;
                         m_PreIntegratedFGD[(int)index].wrapMode = TextureWrapMode.Clamp;
                         m_PreIntegratedFGD[(int)index].name = CoreUtils.GetRenderTargetAutoName(res, res, 1, GraphicsFormat.A2B10G10R10_UNormPack32, "preIntegratedFGD_Marschner");
+                        m_PreIntegratedFGD[(int)index].Create();
+                        break;
+
+                    case FGDIndex.FGD_DGGXOnly:
+                        m_PreIntegratedFGDMaterial[(int)index] = CoreUtils.CreateEngineMaterial(HDRenderPipelineGlobalSettings.instance.renderPipelineResources.shaders.preIntegratedFGD_DGGXOnlyPS);
+                        m_PreIntegratedFGD[(int)index] = new RenderTexture(res, res, 0, GraphicsFormat.R16_UNorm);
+                        m_PreIntegratedFGD[(int)index].hideFlags = HideFlags.HideAndDontSave;
+                        m_PreIntegratedFGD[(int)index].filterMode = FilterMode.Bilinear;
+                        m_PreIntegratedFGD[(int)index].wrapMode = TextureWrapMode.Clamp;
+                        m_PreIntegratedFGD[(int)index].name = CoreUtils.GetRenderTargetAutoName(res, res, 1, GraphicsFormat.R16_UNorm, "preIntegratedFGD_DGGXOnly");
                         m_PreIntegratedFGD[(int)index].Create();
                         break;
 
@@ -145,6 +156,10 @@ namespace UnityEngine.Rendering.HighDefinition
 
                 case FGDIndex.FGD_Marschner:
                     cmd.SetGlobalTexture(HDShaderIDs._PreIntegratedFGD_CharlieAndFabric, m_PreIntegratedFGD[(int)index]);
+                    break;
+
+                case FGDIndex.FGD_DGGXOnly:
+                    cmd.SetGlobalTexture(HDShaderIDs._PreIntegratedFGD_DGGXOnly, m_PreIntegratedFGD[(int)index]);
                     break;
 
                 default:

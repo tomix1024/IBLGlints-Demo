@@ -97,6 +97,21 @@ namespace UnityEngine.Rendering.HighDefinition
             : base(value, overrideState) { }
     }
 
+    public enum GlintFormat {
+        R8G8B8A8_UNorm = UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_UNorm,           // Waaay too bright!!!
+        R8G8B8A8_SRGB = UnityEngine.Experimental.Rendering.GraphicsFormat.R8G8B8A8_SRGB,             // Significant difference
+        R16G16B16A16_UNorm = UnityEngine.Experimental.Rendering.GraphicsFormat.R16G16B16A16_UNorm,   // Minimal error few flakes missing
+        R16G16B16A16_SFloat = UnityEngine.Experimental.Rendering.GraphicsFormat.R16G16B16A16_SFloat, // Too many isolated flakes! even with scale! mantissa is simply too short.
+        R32G32B32A32_SFloat = UnityEngine.Experimental.Rendering.GraphicsFormat.R32G32B32A32_SFloat, // "Reference" (32bit SFloat has more mantissa than 16bit UNorm)
+    }
+
+    [Serializable]
+    public sealed class GlintFormatParameter : VolumeParameter<GlintFormat>
+    {
+        public GlintFormatParameter(GlintFormat value, bool overrideState = false)
+            : base(value, overrideState) { }
+    }
+
     /// <summary>
     /// Base class for custom Sky Settings.
     /// </summary>
@@ -133,6 +148,12 @@ namespace UnityEngine.Rendering.HighDefinition
         [Tooltip("When enabled, HDRP uses the Sun Disk in baked lighting.")]
         public BoolParameter includeSunInBaking = new BoolParameter(false);
 
+        public FloatParameter glintLogBlackLevel = new FloatParameter(-2);
+        public IntParameter glintSmoothStepCount = new ClampedIntParameter(0, 0, 2);
+        public BoolParameter glintLogDistribution = new BoolParameter(false);
+        public BoolParameter glintEnable4Levels = new BoolParameter(true);
+        public BoolParameter glintEnable8Levels = new BoolParameter(true);
+        public GlintFormatParameter glintFormat = new GlintFormatParameter(GlintFormat.R16G16B16A16_UNorm);
 
         static Dictionary<Type, int> skyUniqueIDs = new Dictionary<Type, int>();
 
@@ -164,6 +185,12 @@ namespace UnityEngine.Rendering.HighDefinition
                 hash = hash * 23 + desiredLuxValue.value.GetHashCode();
                 hash = hash * 23 + skyIntensityMode.value.GetHashCode();
                 hash = hash * 23 + includeSunInBaking.value.GetHashCode();
+                hash = hash * 23 + glintLogBlackLevel.value.GetHashCode();
+                hash = hash * 23 + glintSmoothStepCount.value.GetHashCode();
+                hash = hash * 23 + glintLogDistribution.value.GetHashCode();
+                hash = hash * 23 + glintEnable4Levels.value.GetHashCode();
+                hash = hash * 23 + glintEnable8Levels.value.GetHashCode();
+                hash = hash * 23 + glintFormat.value.GetHashCode();
 
                 hash = hash * 23 + rotation.overrideState.GetHashCode();
                 hash = hash * 23 + exposure.overrideState.GetHashCode();
@@ -171,6 +198,12 @@ namespace UnityEngine.Rendering.HighDefinition
                 hash = hash * 23 + desiredLuxValue.overrideState.GetHashCode();
                 hash = hash * 23 + skyIntensityMode.overrideState.GetHashCode();
                 hash = hash * 23 + includeSunInBaking.overrideState.GetHashCode();
+                hash = hash * 23 + glintLogBlackLevel.overrideState.GetHashCode();
+                hash = hash * 23 + glintSmoothStepCount.overrideState.GetHashCode();
+                hash = hash * 23 + glintLogDistribution.overrideState.GetHashCode();
+                hash = hash * 23 + glintEnable4Levels.overrideState.GetHashCode();
+                hash = hash * 23 + glintEnable8Levels.overrideState.GetHashCode();
+                hash = hash * 23 + glintFormat.overrideState.GetHashCode();
 #else
                 // UpdateMode and period should not be part of the hash as they do not influence rendering itself.
                 int hash = 13;
@@ -180,6 +213,12 @@ namespace UnityEngine.Rendering.HighDefinition
                 hash = hash * 23 + desiredLuxValue.GetHashCode();
                 hash = hash * 23 + skyIntensityMode.GetHashCode();
                 hash = hash * 23 + includeSunInBaking.GetHashCode();
+                hash = hash * 23 + glintLogBlackLevel.value.GetHashCode();
+                hash = hash * 23 + glintSmoothStepCount.value.GetHashCode();
+                hash = hash * 23 + glintLogDistribution.value.GetHashCode();
+                hash = hash * 23 + glintEnable4Levels.value.GetHashCode();
+                hash = hash * 23 + glintEnable8Levels.value.GetHashCode();
+                hash = hash * 23 + glintFormat.value.GetHashCode();
 #endif
 
                 return hash;

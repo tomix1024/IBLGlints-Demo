@@ -116,6 +116,57 @@ namespace UnityEngine.Rendering.HighDefinition
                 CoreUtils.SetKeyword(material, "_MATERIAL_FEATURE_CLEAR_COAT", material.GetFloat(kCoatMask) > 0.0 || material.GetTexture(kCoatMaskMap));
                 CoreUtils.SetKeyword(material, "_MATERIAL_FEATURE_IRIDESCENCE", materialId == MaterialId.LitIridescence);
                 CoreUtils.SetKeyword(material, "_MATERIAL_FEATURE_SPECULAR_COLOR", materialId == MaterialId.LitSpecular);
+                CoreUtils.SetKeyword(material, "_MATERIAL_FEATURE_GLINTS", materialId == MaterialId.LitGlints);
+            }
+
+            if (material.HasProperty(kGlintSurfaceDistribution))
+            {
+                int surfDistVariant = material.GetInt(kGlintSurfaceDistribution);
+                CoreUtils.SetKeyword(material, "_GLINTS_SURFACE_DISTRIBUTION_UNIFORM", surfDistVariant == 0);
+                CoreUtils.SetKeyword(material, "_GLINTS_SURFACE_DISTRIBUTION_UNGATED", surfDistVariant == 1);
+                CoreUtils.SetKeyword(material, "_GLINTS_SURFACE_DISTRIBUTION_GATED", surfDistVariant == 2);
+                CoreUtils.SetKeyword(material, "_GLINTS_SURFACE_DISTRIBUTION_DUALGATED", surfDistVariant == 3);
+            }
+
+            if (material.HasProperty(kGlintIBLVariant))
+            {
+                int iblVariant = material.GetInt(kGlintIBLVariant);
+                CoreUtils.SetKeyword(material, "_GLINTS_IBL_VARIANT_DISCRETE4", iblVariant == 0);
+                CoreUtils.SetKeyword(material, "_GLINTS_IBL_VARIANT_DISCRETE8", iblVariant == 1);
+                CoreUtils.SetKeyword(material, "_GLINTS_IBL_VARIANT_WANG2020", iblVariant == 2);
+            }
+
+            if (material.HasProperty(kGlintIBLDistribution))
+            {
+                int iblDist = material.GetInt(kGlintIBLDistribution);
+                CoreUtils.SetKeyword(material, "_GLINTS_IBL_DISTRIBUTION_UNGATED", iblDist == 1);
+                CoreUtils.SetKeyword(material, "_GLINTS_IBL_DISTRIBUTION_GATED", iblDist == 2);
+                CoreUtils.SetKeyword(material, "_GLINTS_IBL_DISTRIBUTION_DUALGATED", iblDist == 3);
+            }
+
+            if (material.HasProperty(kGlintNDFIntegrationMode))
+            {
+                int integrationMode = material.GetInt(kGlintNDFIntegrationMode);
+                CoreUtils.SetKeyword(material, "_GLINTS_NDF_DEDICATED_LTC", integrationMode == 1 || integrationMode == 2);
+            }
+
+            if (material.HasProperty("_GlintBrokenOneMinusPPowN"))
+            {
+                CoreUtils.SetKeyword(material, "_GLINTS_BROKEN_ONEMINUSPPOWN", material.GetFloat("_GlintBrokenOneMinusPPowN") != 0);
+            }
+
+            if (material.HasProperty("_GlintVisualizeMultinomial"))
+            {
+                CoreUtils.SetKeyword(material, "_GLINTS_VISUALIZE_MULTINOMIAL", material.GetFloat("_GlintVisualizeMultinomial") != 0);
+            }
+
+            if (material.HasProperty(kLogSinSunAngle) && material.HasProperty(kSunSolidAngle))
+            {
+                float logSinSunAngle = material.GetFloat(kLogSinSunAngle);
+                float sinGammaSq = Mathf.Exp(2*logSinSunAngle);
+                float cosGamma = Mathf.Sqrt(1 - sinGammaSq);
+                float Al = 2*Mathf.PI * (1 - cosGamma);
+                material.SetFloat(kSunSolidAngle, Al);
             }
 
             if (material.HasProperty(kRefractionModel))

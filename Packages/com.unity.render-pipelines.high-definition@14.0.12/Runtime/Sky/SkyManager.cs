@@ -153,6 +153,7 @@ namespace UnityEngine.Rendering.HighDefinition
         Material m_StandardSkyboxMaterial; // This is the Unity standard skybox material. Used to pass the correct cubemap to Enlighten.
         Material m_BlitCubemapMaterial;
         Material m_OpaqueAtmScatteringMaterial;
+        Material m_ComputeRadianceLevelWeightsMaterial;
 
         SphericalHarmonicsL2 m_BlackAmbientProbe = new SphericalHarmonicsL2();
 
@@ -209,6 +210,13 @@ namespace UnityEngine.Rendering.HighDefinition
         int m_ComputeAmbientProbeKernel;
         int m_ComputeAmbientProbeVolumetricKernel;
         int m_ComputeAmbientProbeCloudsKernel;
+
+
+        ComputeShader m_ComputeRadianceLevelsCS;
+        int m_ReduceRadianceLevelsCubemapKernel;
+        int m_ReduceRadianceLevelsFinalKernel;
+        int m_ReduceRadianceLevelsFinalToLevelsKernel;
+
 
         CubemapArray m_BlackCubemapArray;
         ComputeBuffer m_BlackAmbientProbeBuffer;
@@ -403,10 +411,17 @@ namespace UnityEngine.Rendering.HighDefinition
 
             m_OpaqueAtmScatteringMaterial = CoreUtils.CreateEngineMaterial(defaultResources.shaders.opaqueAtmosphericScatteringPS);
 
+            m_ComputeRadianceLevelWeightsMaterial = CoreUtils.CreateEngineMaterial(defaultResources.shaders.computeRadianceLevelWeightsPS);
+
             m_ComputeAmbientProbeCS = HDRenderPipelineGlobalSettings.instance.renderPipelineResources.shaders.ambientProbeConvolutionCS;
             m_ComputeAmbientProbeKernel = m_ComputeAmbientProbeCS.FindKernel("AmbientProbeConvolutionDiffuse");
             m_ComputeAmbientProbeVolumetricKernel = m_ComputeAmbientProbeCS.FindKernel("AmbientProbeConvolutionDiffuseVolumetric");
             m_ComputeAmbientProbeCloudsKernel = m_ComputeAmbientProbeCS.FindKernel("AmbientProbeConvolutionClouds");
+
+            m_ComputeRadianceLevelsCS = HDRenderPipelineGlobalSettings.instance.renderPipelineResources.shaders.computeRadianceLevelsCS;
+            m_ReduceRadianceLevelsCubemapKernel = m_ComputeRadianceLevelsCS.FindKernel("ReduceMaxCubemap");
+            m_ReduceRadianceLevelsFinalKernel = m_ComputeRadianceLevelsCS.FindKernel("ReduceMaxFinal");
+            m_ReduceRadianceLevelsFinalToLevelsKernel = m_ComputeRadianceLevelsCS.FindKernel("ReduceMaxFinalToLevels");
 
             lightingOverrideVolumeStack = VolumeManager.instance.CreateStack();
             lightingOverrideLayerMask = hdAsset.currentPlatformRenderPipelineSettings.lightLoopSettings.skyLightingOverrideLayerMask;
@@ -503,6 +518,7 @@ namespace UnityEngine.Rendering.HighDefinition
             CoreUtils.Destroy(m_StandardSkyboxMaterial);
             CoreUtils.Destroy(m_BlitCubemapMaterial);
             CoreUtils.Destroy(m_OpaqueAtmScatteringMaterial);
+            CoreUtils.Destroy(m_ComputeRadianceLevelWeightsMaterial);
 
             CoreUtils.Destroy(m_BlackCubemapArray);
             m_BlackAmbientProbeBuffer.Release();
@@ -591,6 +607,32 @@ namespace UnityEngine.Rendering.HighDefinition
             else
             {
                 return m_BlackCubemapArray;
+            }
+        }
+
+        Texture GetGlintLevelWeightsTexture(SkyUpdateContext skyContext)
+        {
+            if (skyContext.IsValid() && IsCachedContextValid(skyContext))
+            {
+                ref var context = ref m_CachedSkyContexts[skyContext.cachedSkyRenderingContextId];
+                return context.renderingContext.skyboxGlintLevelWeightsCubemapArray;
+            }
+            else
+            {
+                return m_BlackCubemapArray;
+            }
+        }
+
+        ComputeBuffer GetGlintLevelsBuffer(SkyUpdateContext skyContext)
+        {
+            if (skyContext.IsValid() && IsCachedContextValid(skyContext))
+            {
+                ref var context = ref m_CachedSkyContexts[skyContext.cachedSkyRenderingContextId];
+                return context.renderingContext.skyboxGlintLevelsBuffer;
+            }
+            else
+            {
+                return null;
             }
         }
 
@@ -909,6 +951,156 @@ namespace UnityEngine.Rendering.HighDefinition
             }
         }
 
+        class SkyCoputeRadianceLevelsPassData
+        {
+            public TextureHandle input;
+            public ComputeBufferHandle intermediateBuffer;
+            public ComputeBuffer outputBuffer;
+            public ComputeShader computeRadianceLevelsCS;
+            public int reduceRadianceLevelsCubemapKernel;
+            public int reduceRadianceLevelsFinalKernel;
+            public int reduceRadianceLevelsFinalToLevelsKernel;
+            public float logBlackLevel;
+            public Action<AsyncGPUReadbackRequest> callback;
+        }
+        public void OnComputeCubemapRadianceLevelsDone(AsyncGPUReadbackRequest request)
+        {
+            if (!request.hasError)
+            {
+                var result = request.GetData<float>();
+                Debug.Log($"Success!\nlevel0/8={result[0]}, level1/8={result[1]}, level2/8={result[2]}, level3/8={result[3]}\nlevel4/8={result[4]}, level5/8={result[5]}, level6/8={result[6]}, level7/8={result[7]}\nlevel0/4={result[8]}, level1/4={result[9]}, level2/4={result[10]}, level3/4={result[11]}");
+            }
+            else
+            {
+                Debug.Log("Error!");
+            }
+        }
+        void ComputeCubemapGlintLevels(RenderGraph renderGraph, TextureHandle input, ComputeBuffer output, float logBlackLevel, bool enable4Levels=true, bool enable8Levels=true)
+        {
+            if (!enable4Levels && !enable8Levels)
+                return;
+            // input: unfiltered environment cubemap
+            // output: 3*bsdfCount cubemap array for convolved output
+            using (var builder = renderGraph.AddRenderPass<SkyCoputeRadianceLevelsPassData>("UpdateCubemapMaxLuminance", out var passData, ProfilingSampler.Get(HDProfileId.UpdateSkyEnvironmentConvolution)))
+            {
+                passData.input = builder.ReadTexture(input);
+                passData.intermediateBuffer = builder.CreateTransientComputeBuffer(new ComputeBufferDesc(64, 2*sizeof(float)));
+                passData.outputBuffer = output;
+                passData.computeRadianceLevelsCS = m_ComputeRadianceLevelsCS;
+                passData.reduceRadianceLevelsCubemapKernel = m_ReduceRadianceLevelsCubemapKernel;
+                passData.reduceRadianceLevelsFinalKernel = m_ReduceRadianceLevelsFinalKernel;
+                passData.reduceRadianceLevelsFinalToLevelsKernel = m_ReduceRadianceLevelsFinalToLevelsKernel;
+                passData.logBlackLevel = logBlackLevel;
+                passData.callback = this.OnComputeCubemapRadianceLevelsDone;
+
+                builder.SetRenderFunc(
+                (SkyCoputeRadianceLevelsPassData data, RenderGraphContext ctx) =>
+                {
+                    ctx.cmd.SetComputeTextureParam(data.computeRadianceLevelsCS, data.reduceRadianceLevelsCubemapKernel, "_InputCube", data.input);
+                    ctx.cmd.SetComputeBufferParam(data.computeRadianceLevelsCS, data.reduceRadianceLevelsCubemapKernel, "_OutputBuffer", data.intermediateBuffer);
+                    int[] dispatchSize = { 8, 8, 1 };
+                    ctx.cmd.SetComputeIntParams(data.computeRadianceLevelsCS, "_DispatchSize", dispatchSize);
+                    ctx.cmd.SetComputeFloatParam(data.computeRadianceLevelsCS, "_BlackLevel", Mathf.Pow(10, data.logBlackLevel));
+                    ctx.cmd.DispatchCompute(data.computeRadianceLevelsCS, data.reduceRadianceLevelsCubemapKernel, 8, 8, 1);
+
+                    ctx.cmd.SetComputeBufferParam(data.computeRadianceLevelsCS, data.reduceRadianceLevelsFinalToLevelsKernel, "_InputBuffer", data.intermediateBuffer);
+                    ctx.cmd.SetComputeBufferParam(data.computeRadianceLevelsCS, data.reduceRadianceLevelsFinalToLevelsKernel, "_OutputBufferLevels", data.outputBuffer);
+                    ctx.cmd.DispatchCompute(data.computeRadianceLevelsCS, data.reduceRadianceLevelsFinalToLevelsKernel, 1, 1, 1);
+                    // TODO maybe write back to intermediate buffer and then copy to uniform buffer!
+
+                    // Only for debugging...
+                    //ctx.cmd.RequestAsyncReadback(data.outputBuffer, data.callback);
+                });
+            }
+        }
+
+        class SkyEnvironmentGlintLevelWeightsConvolutionPassData
+        {
+            public TextureHandle input;
+            public TextureHandle intermediateWeightTexture; // store the weights for each radiance level computed from the input
+            public TextureHandle intermediateConvTexture; // store the convolution result before copy to output
+            public CubemapArray output; // Only instance of cubemap array in HDRP and RTHandles don't support them. Don't want to make a special API just for this case.
+            public ComputeBuffer glintLevelsBuffer;
+            public Matrix4x4[] facePixelCoordToViewDirMatrices;
+            public Matrix4x4[] cameraViewMatrices;
+            public Material computeRadianceLevelWeightsMaterial;
+            public IBLFilterBSDF[] bsdfs;
+            public int smoothStepCount;
+            public bool logDistribution;
+            public bool enable4Levels;
+            public bool enable8Levels;
+        }
+
+        void RenderCubemapGlintLevelWeightsGGXConvolution(RenderGraph renderGraph, TextureHandle input, CubemapArray output, ComputeBuffer glintLevelsBuffer, int smoothStepCount=0, bool logDistribution=false, bool enable4Levels=true, bool enable8Levels=true)
+        {
+            if (!enable4Levels && !enable8Levels)
+                return;
+            // input: unfiltered environment cubemap
+            // output: 3*bsdfCount cubemap array for convolved output
+            using (var builder = renderGraph.AddRenderPass<SkyEnvironmentGlintLevelWeightsConvolutionPassData>("UpdateSkyEnvironmentGlintLevelWeightsConvolution", out var passData, ProfilingSampler.Get(HDProfileId.UpdateSkyEnvironmentConvolution)))
+            {
+                passData.bsdfs = m_IBLFilterArray;
+                passData.input = builder.ReadTexture(input);
+                passData.output = output;
+                passData.facePixelCoordToViewDirMatrices = m_FacePixelCoordToViewDirMatrices;
+                passData.cameraViewMatrices = m_CameraRelativeViewMatrices;
+                passData.intermediateWeightTexture = builder.CreateTransientTexture(new TextureDesc(m_Resolution, m_Resolution)
+                { colorFormat = output.graphicsFormat, dimension = TextureDimension.Cube, useMipMap = true, autoGenerateMips = false, filterMode = FilterMode.Trilinear, name = "SkyboxGlintLevelWeightsIntermediate" });
+                passData.intermediateConvTexture = builder.CreateTransientTexture(new TextureDesc(m_Resolution, m_Resolution)
+                { colorFormat = output.graphicsFormat, dimension = TextureDimension.Cube, useMipMap = true, autoGenerateMips = false, filterMode = FilterMode.Trilinear, name = "SkyboxGlintLevelWeightsConvolutionIntermediate" });
+                passData.glintLevelsBuffer = glintLevelsBuffer;
+                passData.computeRadianceLevelWeightsMaterial = m_ComputeRadianceLevelWeightsMaterial;
+                passData.smoothStepCount = smoothStepCount;
+                passData.logDistribution = logDistribution;
+                passData.enable4Levels = enable4Levels;
+                passData.enable8Levels = enable8Levels;
+
+                builder.SetRenderFunc(
+                (SkyEnvironmentGlintLevelWeightsConvolutionPassData data, RenderGraphContext ctx) =>
+                {
+                    int glintSliceCount = data.output.cubemapCount / data.bsdfs.Length;
+                    for (int sliceIndex = 0; sliceIndex < glintSliceCount; ++sliceIndex)
+                    {
+                        if (!enable4Levels && sliceIndex == 2)
+                            continue;
+                        if (!enable8Levels && (sliceIndex >= 0 && sliceIndex < 2))
+                            continue;
+
+                        // Compute glint level weights here! data.input -> data.intermediateWeightTexture
+                        var props = new MaterialPropertyBlock();
+                        props.SetTexture("_MainTex", data.input);
+                        props.SetInt("_OutputIndex", sliceIndex);
+                        props.SetInt("_SmoothStepCount", data.smoothStepCount);
+                        props.SetInt("_GlintLogDistribution", data.logDistribution ? 1 : 0);
+                        props.SetConstantBuffer("_GlintLevelsData", data.glintLevelsBuffer, 0, 16*sizeof(float));
+                        for (int face = 0; face < 6; ++face)
+                        {
+                            props.SetMatrix(HDShaderIDs._PixelCoordToViewDirWS, data.facePixelCoordToViewDirMatrices[face]);
+                            // Write 0th mipmap
+                            CoreUtils.SetRenderTarget(ctx.cmd, data.intermediateWeightTexture, ClearFlag.None, 0, (CubemapFace)face);
+                            CoreUtils.DrawFullScreen(ctx.cmd, data.computeRadianceLevelWeightsMaterial, props);
+                        }
+
+                        // Generate mipmap for our cubemap
+                        //HDRenderPipeline.GenerateMipmaps(renderGraph, data.intermediateWeightTexture);
+                        ctx.cmd.GenerateMips(data.intermediateWeightTexture);
+
+                        // Convolve with BSDFs
+                        for (int bsdfIdx = 0; bsdfIdx < data.bsdfs.Length; ++bsdfIdx)
+                        {
+                            // Filter this cubemap using the target filter
+                            data.bsdfs[bsdfIdx].FilterCubemap(ctx.cmd, data.intermediateWeightTexture, data.intermediateConvTexture);
+                            // Then copy it to the cubemap array slice
+                            for (int i = 0; i < 6; ++i)
+                            {
+                                ctx.cmd.CopyTexture(data.intermediateConvTexture, i, data.output, 6 * (bsdfIdx*glintSliceCount + sliceIndex) + i);
+                            }
+                        }
+                    }
+                });
+            }
+        }
+
         // We do our own hash here because Unity does not provide correct hash for builtin types
         // Moreover, we don't want to test every single parameters of the light so we filter them here in this specific function.
         int GetSunLightHashCode(Light light)
@@ -946,9 +1138,14 @@ namespace UnityEngine.Rendering.HighDefinition
                 context.renderingContext.Cleanup();
                 context.renderingContext = null;
             }
+            if (context.renderingContext != null && context.renderingContext.supportsGlintLevels && context.renderingContext.skyboxGlintLevelWeightsCubemapArray.graphicsFormat != (GraphicsFormat)skyContext.skySettings.glintFormat.value)
+            {
+                context.renderingContext.Cleanup();
+                context.renderingContext = null;
+            }
 
             if (context.renderingContext == null)
-                context.renderingContext = new SkyRenderingContext(m_Resolution, m_IBLFilterArray.Length, supportConvolution, previousAmbientProbe, name);
+                context.renderingContext = new SkyRenderingContext(m_Resolution, m_IBLFilterArray.Length, supportConvolution, previousAmbientProbe, name, skyContext.skySettings.glintFormat.value);
 
             // If we detected a big difference with previous settings, then carrying over the previous ambient probe is probably going to lead to unexpected result.
             // Instead we at least fallback to a neutral one until async readback has finished.
@@ -1184,6 +1381,14 @@ namespace UnityEngine.Rendering.HighDefinition
                         if (renderingContext.supportsConvolution)
                             RenderCubemapGGXConvolution(renderGraph, skyCubemap, renderingContext.skyboxBSDFCubemapArray);
 
+                        if (renderingContext.supportsGlintLevels)
+                        {
+                            ComputeCubemapGlintLevels(renderGraph, skyCubemap, renderingContext.skyboxGlintLevelsBuffer, skyContext.skySettings.glintLogBlackLevel.value,
+                                skyContext.skySettings.glintEnable4Levels.value, skyContext.skySettings.glintEnable8Levels.value);
+                            RenderCubemapGlintLevelWeightsGGXConvolution(renderGraph, skyCubemap, renderingContext.skyboxGlintLevelWeightsCubemapArray, renderingContext.skyboxGlintLevelsBuffer, skyContext.skySettings.glintSmoothStepCount.value, skyContext.skySettings.glintLogDistribution.value,
+                                skyContext.skySettings.glintEnable4Levels.value, skyContext.skySettings.glintEnable8Levels.value);
+                        }
+
                         skyContext.skyParametersHash = skyHash;
                         skyContext.currentUpdateTime = 0.0f;
 
@@ -1241,7 +1446,10 @@ namespace UnityEngine.Rendering.HighDefinition
 
             // Keep global setter for now. We should probably remove it and set it explicitly where needed like any other resource. As is it breaks resource lifetime contract with render graph.
             HDRenderPipeline.SetGlobalTexture(renderGraph, HDShaderIDs._SkyTexture, GetReflectionTexture(hdCamera.lightingSky));
+            HDRenderPipeline.SetGlobalTexture(renderGraph, HDShaderIDs._SkyTextureGlintLevelWeights, GetGlintLevelWeightsTexture(hdCamera.lightingSky));
             HDRenderPipeline.SetGlobalBuffer(renderGraph, HDShaderIDs._AmbientProbeData, GetDiffuseAmbientProbeBuffer(hdCamera));
+            var glintLevelsBuffer =  GetGlintLevelsBuffer(hdCamera.lightingSky);
+            HDRenderPipeline.SetGlobalConstantBuffer(renderGraph, HDShaderIDs._GlintLevelsData, glintLevelsBuffer, 0, 16*sizeof(float));
         }
 
         static void UpdateBuiltinParameters(ref BuiltinSkyParameters builtinParameters, SkyUpdateContext skyContext, HDCamera hdCamera, Light sunLight, DebugDisplaySettings debugSettings)
