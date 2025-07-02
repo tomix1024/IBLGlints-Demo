@@ -85,9 +85,9 @@
       "url": "https://packages.unity.com"
     },
     "com.unity.render-pipelines.core": {
-      "version": "14.0.12",
-      "depth": 1,
-      "source": "builtin",
+      "version": "file:com.unity.render-pipelines.core@14.0.12",
+      "depth": 0,
+      "source": "embedded",
       "dependencies": {
         "com.unity.ugui": "1.0.0",
         "com.unity.modules.physics": "1.0.0",
@@ -96,9 +96,9 @@
       }
     },
     "com.unity.render-pipelines.high-definition": {
-      "version": "14.0.12",
+      "version": "file:com.unity.render-pipelines.high-definition@14.0.12",
       "depth": 0,
-      "source": "builtin",
+      "source": "embedded",
       "dependencies": {
         "com.unity.mathematics": "1.2.4",
         "com.unity.burst": "1.8.9",
