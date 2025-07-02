@@ -638,7 +638,7 @@ DirectLighting EvaluateBSDF_Rect(   LightLoopContext lightLoopContext,
             formFactorD = PolygonFormFactor(LD);
             ltcValue = PolygonIrradianceFromVectorFormFactor(formFactorD);
 #else
-            ltcValue = PolygonIrradiance(LD, formFactorD);
+            ltcValue = PolygonIrradiance(LD);
 #endif
             ltcValue *= lightData.diffuseDimmer;
 

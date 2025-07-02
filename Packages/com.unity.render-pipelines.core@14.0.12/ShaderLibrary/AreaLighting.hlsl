@@ -1,7 +1,8 @@
 #ifndef UNITY_AREA_LIGHTING_INCLUDED
 #define UNITY_AREA_LIGHTING_INCLUDED
 
-#define APPROXIMATE_POLY_LIGHT_AS_SPHERE_LIGHT
+// For glint validation we need polygonal area lights to be polygonal area lights!
+//#define APPROXIMATE_POLY_LIGHT_AS_SPHERE_LIGHT
 #define APPROXIMATE_SPHERE_LIGHT_NUMERICALLY
 
 // Not normalized by the factor of 1/TWO_PI.
