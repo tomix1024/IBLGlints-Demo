@@ -1,0 +1,12 @@
+/Temp
+/Logs
+/Library
+/UserSettings
+/Build
+# Automatically generated project files
+*.sln
+*.csproj
+
+# Output images
+/*.exr
+/*.png
