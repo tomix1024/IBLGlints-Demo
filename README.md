@@ -24,7 +24,7 @@ The relevant entry points for the glint evaluation are found in `Packages/com.un
 - `DirectLighting EvaluateBSDF_Rect(...)`
 - `CBSDF EvaluateBSDF(...)`
 
-The binomial is then implemented in the files `Packages/com.unity.render-pipelines.high-definition/Runtime/Material/Glints/Glints*.hlsl`.
+The binomial/multinomial sampling is then implemented in the files `Packages/com.unity.render-pipelines.high-definition/Runtime/Material/Glints/Glints*.hlsl`.
 
 The Unity Project itself contains the demo scene that can be built into an executable.
 
