@@ -32,12 +32,12 @@ The Unity Project itself contains the demo scene that can be built into an execu
 Precompiled Binaries
 --------------------
 
-Precompiled binaries are available for [Linux](http://cg.cs.uni-bonn.de/backend/v1/files/code/IBLGlints-Demo/IBLGlints-Demo-Linux.tar.gz) and [Windows](http://cg.cs.uni-bonn.de/backend/v1/files/code/IBLGlints-Demo/IBLGlints-Demo-Windows.zip).
+Precompiled binaries are available for [Linux](https://cg.cs.uni-bonn.de/backend/v1/files/code/IBLGlints-Demo/IBLGlints-Demo-Linux.tar.gz) and [Windows](https://cg.cs.uni-bonn.de/backend/v1/files/code/IBLGlints-Demo/IBLGlints-Demo-Windows.zip).
 
 | Filename                    | sha256sum                                                        |
 |-----------------------------|------------------------------------------------------------------|
-| IBLGlints-Demo-Linux.tar.gz | e87a87201b7fe76291fa95419fa3db6e924f013e676f3ec09c79b695c5041dd3 |
-| IBLGlints-Demo-Windows.zip  | 052bc4170e70606fd19a579c737a8f4e2250a1ab6e4fece951b5a8c7df8d40c7 |
+| [IBLGlints-Demo-Linux.tar.gz](https://cg.cs.uni-bonn.de/backend/v1/files/code/IBLGlints-Demo/IBLGlints-Demo-Linux.tar.gz) | e87a87201b7fe76291fa95419fa3db6e924f013e676f3ec09c79b695c5041dd3 |
+| [IBLGlints-Demo-Windows.zip](https://cg.cs.uni-bonn.de/backend/v1/files/code/IBLGlints-Demo/IBLGlints-Demo-Windows.zip)  | 052bc4170e70606fd19a579c737a8f4e2250a1ab6e4fece951b5a8c7df8d40c7 |
 
 Citation
 --------
