@@ -32,7 +32,7 @@ The Unity Project itself contains the demo scene that can be built into an execu
 Precompiled Binaries
 --------------------
 
-Precompiled binaries can be found in a not yet disclosed location for Linux and Windows.
+Precompiled binaries are available for [Linux](http://cg.cs.uni-bonn.de/backend/v1/files/code/IBLGlints-Demo/IBLGlints-Demo-Linux.tar.gz) and [Windows](http://cg.cs.uni-bonn.de/backend/v1/files/code/IBLGlints-Demo/IBLGlints-Demo-Windows.zip).
 
 
 Citation
